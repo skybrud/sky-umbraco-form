@@ -65,22 +65,31 @@
 					form.on('submit', function(event) {
 						event.preventDefault();
 
-						var data = {};
+						var formData:any = ('FormData' in window) ? new FormData() : {};
+
 						angular.forEach(form[0].querySelectorAll('input, textarea, select'), function(field) {
 							if (field.type == 'submit' && field.name != direction) {
 								return;
 							}
-							data[field.name] = field.value;						
+							if (('FormData' in window)) {
+								formData.append(field.name, field.type === 'file' ? field.files[0] : field.value);
+							} else {
+								if(field.type === 'file') {
+									alert('File upload not supported in IE9. Please upgrade your browser!');
+								} else {
+									formData[field.name] = field.value;
+								}
+							}			
 						});
 
 						$element.addClass('loading');
 						$http({
 							method: 'POST',
-							data: $httpParamSerializerJQLike(data),
+							data: ('FormData' in window) ? formData : $httpParamSerializerJQLike(formData),
 							withCredentials: true,
 							url: path + form.attr('action'),
 							headers: {
-								'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+								'Content-Type': undefined
 							}
 						}).then(function(result) {
 							handleMarkup(result.data);
