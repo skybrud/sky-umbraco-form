@@ -16,8 +16,8 @@
 			templateUrl: '/sky-umbraco-form/sky-umbraco-form.template.html'
 		};
 
-		skyUmbracoFormController.$inject = ['$http', 'skyPath', '$element', '$httpParamSerializerJQLike'];
-		function skyUmbracoFormController($http, skyPath, $element, $httpParamSerializerJQLike) {
+		skyUmbracoFormController.$inject = ['$http', 'skyPath', '$element'];
+		function skyUmbracoFormController($http, skyPath, $element) {
 			var _this = this;
 
 			$element.addClass('loading');
@@ -26,32 +26,34 @@
 			
 			$http({
 				method: 'GET',
-				url: path+'/formrender/',
-				withCredentials:true,
+				url: path + '/formrender/',
+				withCredentials: true,
 				params: {
 					guid: _this.formGuid
 				}
-			}).then(function(result) {
-				handleMarkup(result.data);
-			});
+			}).then((result) => handleMarkup(result.data));
 
 			function handleMarkup(markup) {
 				$element.removeClass('loading');
 				_this.markup = markup;
 
-				setTimeout(function() {
-
+				setTimeout(()=>{
 					var scripttags = $element.find('script');
 					angular.forEach(scripttags, function(scripttag) {
-						eval(scripttag.innerHTML);
+						if (scripttag.src) {
+							var s = document.createElement('script');
+							s.src = scripttag.src;
+							document.body.appendChild(s);
+						} else {
+							eval(scripttag.innerHTML);
+						}
 					});
 
 					var form = $element.find('form');
 
+					// specialcase for dealing with multistep-forms
 					var buttons = angular.element($element[0].querySelector('input[type=submit]'));
-
 					var direction = '';
-
 					angular.forEach(buttons, function(button) {
 						if(button.name === 'next' || button.name === 'submit') {
 							direction = button.name;
@@ -61,39 +63,51 @@
 						});
 					});
 
-
 					form.on('submit', function(event) {
 						event.preventDefault();
 
-						var formData:any = ('FormData' in window) ? new FormData() : {};
+						var formData:any = new FormData();
 
 						angular.forEach(form[0].querySelectorAll('input, textarea, select'), function(field) {
 							if (field.type == 'submit' && field.name != direction) {
+								// specialcase for dealing with multistep-forms
 								return;
 							}
-							if (('FormData' in window)) {
-								formData.append(field.name, field.type === 'file' ? field.files[0] : field.value);
-							} else {
-								if(field.type === 'file') {
-									alert('File upload not supported in IE9. Please upgrade your browser!');
-								} else {
-									formData[field.name] = field.value;
+
+							//handle specialcase: fileupload
+							if(field.type === 'file') {
+								if (formData.fake) {
+									alert('Your browser does not support file-uploads. Remaining fields are submitted!');
+									return;
 								}
-							}			
+								Array.prototype.forEach.call(field.files, function(file) {
+									formData.append(field.name, file);
+								});
+								return;
+							}
+
+							//handle specialcase: checkbox+radio
+							if (field.type === 'checkbox' || field.type === 'radio')  {
+								if (field.checked) {
+									formData.append(field.name, field.value);
+								}
+								return;
+							} 
+
+							// all other fields
+							formData.append(field.name, field.value);
 						});
 
 						$element.addClass('loading');
 						$http({
 							method: 'POST',
-							data: ('FormData' in window) ? formData : $httpParamSerializerJQLike(formData),
+							data: formData,
 							withCredentials: true,
 							url: path + form.attr('action'),
 							headers: {
 								'Content-Type': undefined
 							}
-						}).then(function(result) {
-							handleMarkup(result.data);
-						});
+						}).then((result) => handleMarkup(result.data));
 						
 						return false;
 					});
@@ -106,5 +120,4 @@
 
 		return directive;
 	}
-
 })();
