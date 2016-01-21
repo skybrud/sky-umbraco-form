@@ -3,17 +3,16 @@
 
 	angular.module('skyUmbracoForm').directive('skyUmbracoForm', skyUmbracoFormDirective);
 
-	skyUmbracoFormDirective.$inject = ['skyPath'];
-	function skyUmbracoFormDirective(skyPath) {
+	function skyUmbracoFormDirective() {
 		var directive = {
 			restrict: 'E',
-			scope:{
+			scope: {
 				formGuid: '='
 			},
 			bindToController: true,
 			controller: skyUmbracoFormController,
 			controllerAs: 'skyUmbracoFormCtrl',
-			templateUrl: '/sky-umbraco-form/sky-umbraco-form.template.html'
+			template: '<sky-compile content="{{skyUmbracoFormCtrl.markup}}"></sky-compile>'
 		};
 
 		skyUmbracoFormController.$inject = ['$http', 'skyPath', '$element'];
@@ -21,23 +20,26 @@
 			var _this = this;
 
 			$element.addClass('loading');
-
-			var path = skyPath.get();
-			
+		
+			// Get initial form, parse markup to handleMarkup
 			$http({
 				method: 'GET',
-				url: path + '/formrender/',
+				url: skyPath.get() + '/formrender/',
 				withCredentials: true,
 				params: {
 					guid: _this.formGuid
 				}
-			}).then((result) => handleMarkup(result.data));
+			}).then(handleMarkup);
 
 			function handleMarkup(markup) {
 				$element.removeClass('loading');
-				_this.markup = markup;
+				_this.markup = markup.data;
 
-				setTimeout(()=>{
+				// Timeout needed to make sure $compile has run, so we can query the DOM
+				setTimeout(() => {
+
+					// Look for script-tags, and run them (they are inserted passively by 
+					// $compile, so we eval contents or inser script-tag via appendChild)
 					var scripttags = $element.find('script');
 					angular.forEach(scripttags, function(scripttag) {
 						if (scripttag.src) {
@@ -49,9 +51,8 @@
 						}
 					});
 
-					var form = $element.find('form');
-
-					// specialcase for dealing with multistep-forms
+					// Specialcase for dealing with how Umbraco-forms does multistep-forms
+					// Sets a direction-variable based on the clicked button. 
 					var buttons = angular.element($element[0].querySelector('input[type=submit]'));
 					var direction = '';
 					angular.forEach(buttons, function(button) {
@@ -63,30 +64,36 @@
 						});
 					});
 
-					form.on('submit', function(event) {
+					// Take over form-submission
+					$element.find('form').on('submit', function(event) {
 						event.preventDefault();
+						$element.addClass('loading');
 
 						var formData:any = new FormData();
 
-						angular.forEach(form[0].querySelectorAll('input, textarea, select'), function(field) {
+						// Loop through all form-fields and store the values in formData-instance
+						angular.forEach(event.target.querySelectorAll('input, textarea, select'), function(field) {
+							// Specialcase for dealing with multistep Umbraco-forms
+							// Only send input[type=submit]-values of the clicked button
 							if (field.type == 'submit' && field.name != direction) {
-								// specialcase for dealing with multistep-forms
 								return;
 							}
 
-							//handle specialcase: fileupload
+							// Handle file-uploads
 							if(field.type === 'file') {
-								if (formData.fake) {
+								// Not supported in polyfilled FormData()
+								if (formData.fake) { 
 									alert('Your browser does not support file-uploads. Remaining fields are submitted!');
 									return;
 								}
+								// Loop through selected files and add to formData-instance
 								Array.prototype.forEach.call(field.files, function(file) {
 									formData.append(field.name, file);
 								});
 								return;
 							}
 
-							//handle specialcase: checkbox+radio
+							// Handle checkboxes + radio-buttons
 							if (field.type === 'checkbox' || field.type === 'radio')  {
 								if (field.checked) {
 									formData.append(field.name, field.value);
@@ -94,30 +101,27 @@
 								return;
 							} 
 
-							// all other fields
+							// Handle remaining regular fields
 							formData.append(field.name, field.value);
 						});
 
-						$element.addClass('loading');
+						// Actually POST the data (with cookies) and send response to handleMarkup
 						$http({
 							method: 'POST',
 							data: formData,
 							withCredentials: true,
-							url: path + form.attr('action'),
+							url: skyPath.get() + angular.element(event.target).attr('action'), /* Read the action-attr from form-element */
 							headers: {
 								'Content-Type': undefined
 							}
-						}).then((result) => handleMarkup(result.data));
+						}).then(handleMarkup);
 						
 						return false;
 					});
 
 				}, 0);
-
 			}
-
 		}
-
 		return directive;
 	}
 })();

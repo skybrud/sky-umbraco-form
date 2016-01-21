@@ -1,6 +1,6 @@
 /**
- * sky-umbraco-forms
- * Extending angular.element to achieve conditional fields and validation in Umbraco Forms without jQuery.
+ * Extending angular.element to achieve conditional fields and 
+ * validation in Umbraco Forms without jQuery.
  *
  * Use this way to validate single field
  * angular.element(document).search('#specific-field').validate();
@@ -9,8 +9,6 @@
  * angular.element(document).search('.contour form').validateForm();
  *
  * @author Filip Bruun Bech-Larsen, @filipbech
- * @link https://github.com/filipbech/sky-umbraco-forms
- *
  **/
 declare module angular {
 	interface IAugmentedJQuery {
@@ -197,4 +195,3 @@ angular.element.prototype.validateForm = function() {
 		}
 	});
 };
-

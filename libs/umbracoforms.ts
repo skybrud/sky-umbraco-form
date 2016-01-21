@@ -1,3 +1,10 @@
+/**
+ * This is a modified version of the umbraco/contour forms
+ * javascript-file for dealing with conditional-fields.
+ * 
+ * The only modification is replacing jQuery with angular.element
+ * 
+ **/
 var umbracoForms:any = umbracoForms || {};
 (function (uf, $) {
     var conditions = uf.conditions || {},
