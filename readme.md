@@ -2,9 +2,9 @@
 
 Angular component for rendering Umbraco-forms (afka Contour forms)
 
-Please refer to the code-files for usage and documentation!
-
 This component need the server to output the correct output!
+
+Only the libs are needed if the forms should not be submitted/handled via ajax
 
 Usage:
 
