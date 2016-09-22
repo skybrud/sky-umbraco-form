@@ -67,6 +67,8 @@ angular.element.prototype.is = function(sel) {
 		return this[0].msMatches(sel);
 	} else if('webkitMatches' in document.documentElement)  {
 		return this[0].webkitMatches(sel);
+	} else if (sel.match(/^\.\S[^\.]*/)) { //if sel is simple class selector (like ".contourField")
+		return this.hasClass(sel.replace('.', ''));
 	} else {
 		throw('only :checked is supported in old browsers!');
 	}
